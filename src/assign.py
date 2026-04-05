@@ -585,5 +585,16 @@ async def check_peer_review_and_comment(
                 break
             page += 1
         if not already_commented:
-            body = f"""{marker}
-        
+            body = (
+                marker + "\n"
+                "\U0001f44b Hi @" + pr_author + "!\n\n"
+                "This pull request needs a peer review before it can be merged. "
+                "Please request a review from a team member who is not:\n"
+                "- The PR author\n"
+                "- coderabbitai\n"
+                "- copilot\n\n"
+                "Once a valid peer review is submitted, this check will pass automatically. "
+                "Thank you!\n\n"
+                "> \u26a0\ufe0f Peer review enforcement is active."
+            )
+            await create_comment_fn(owner, repo, pr_number, body, token)
