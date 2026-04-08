@@ -572,6 +572,8 @@ const run = async () => {
         // Assignment keywords
         const assignKeywords = ['/assign', 'assign to me', 'assign this to me', 'assign it to me', 'assign me this', 'work on this', 'i can try fixing this', 'i am interested in doing this', 'be assigned this', 'i am interested in contributing'];
         const unassignKeywords = ['/unassign'];
+        const approveKeywords = ['/approve'];
+        const denyKeywords = ['/deny'];
         const giphyKeyword = '/giphy';
         const kudosKeyword = '/kudos';
         const tipKeyword = '/tip';
@@ -581,11 +583,13 @@ const run = async () => {
             const commentBody = comment.body.toLowerCase();
             const shouldAssign = assignKeywords.some(keyword => commentBody.includes(keyword));
             const shouldUnassign = unassignKeywords.some(keyword => commentBody.startsWith(keyword));
+            const shouldApprove = approveKeywords.some(keyword => commentBody.startsWith(keyword));
+            const shouldDeny = denyKeywords.some(keyword => commentBody.startsWith(keyword));
             const shouldGiphy = commentBody.startsWith(giphyKeyword);
             const shouldKudos = commentBody.startsWith(kudosKeyword);
             const shouldTip = commentBody.startsWith(tipKeyword);
 
-            if ((shouldAssign || shouldUnassign) && !isHumanCommenter(comment)) {
+            if ((shouldAssign || shouldUnassign || shouldApprove || shouldDeny) && !isHumanCommenter(comment)) {
                 const { login, type } = extractUserInfo(comment);
                 console.log(`Skipping command from non-user account: ${login} (type=${type})`);
                 return; // Block bots and GitHub Apps from triggering assignment/unassignment
@@ -1009,6 +1013,36 @@ const run = async () => {
                     }
                 } catch (error) {
                     console.error(`Error in assignment flow${issue ? ` for issue #${issue.number}` : ''}:`, error);
+                }
+            } else if (shouldApprove) {
+                try {
+                    const issueContext = issue || pull_request;
+                    if (!issueContext) {
+                        console.log('No issue context, skipping /approve');
+                    } else {
+                        const { handleApprove } = await import('./assign.py');
+                        await handleApprove(
+                            owner, repoName, issueContext, comment.user.login, token,
+                            githubApiFn, createCommentFn
+                        );
+                    }
+                } catch (error) {
+                    console.error(`Error handling /approve command:`, error);
+                }
+            } else if (shouldDeny) {
+                try {
+                    const issueContext = issue || pull_request;
+                    if (!issueContext) {
+                        console.log('No issue context, skipping /deny');
+                    } else {
+                        const { handleDeny } = await import('./assign.py');
+                        await handleDeny(
+                            owner, repoName, issueContext, comment.user.login, token,
+                            githubApiFn, createCommentFn
+                        );
+                    }
+                } catch (error) {
+                    console.error(`Error handling /deny command:`, error);
                 }
             } else if (shouldGiphy) {
                 const searchText = commentBody.replace(giphyKeyword, '').trim();
